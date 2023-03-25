@@ -244,7 +244,7 @@ routeDedupLoopOuter:
 		log.Printf("[#] ip route del %s dev %s table %d", s, c.Device, table)
 		err = conn.Conn.Route.Delete(&route)
 		if err != nil {
-			err = fmt.Errorf("failed to delete old route %s on interface %s: %w", route, c.Device, err)
+			err = fmt.Errorf("failed to delete old route %s on interface %s: %w", s, c.Device, err)
 			return
 		}
 	}
