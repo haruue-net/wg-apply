@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/jsimonetti/rtnetlink"
 	"github.com/jsimonetti/rtnetlink/rtnl"
+	"github.com/mdlayher/netlink"
 	"golang.org/x/sys/unix"
 	"log"
 	"net"
@@ -205,7 +206,7 @@ func (c *NetworkConfig) updateRoutes(conn *rtnl.Conn, ifce *net.Interface) (err 
 	oldRoutes := map[string]rtnetlink.RouteMessage{}
 	{
 		var oas []rtnetlink.RouteMessage
-		oas, err = conn.Conn.Route.List()
+		oas, err = listRoute(conn.Conn, ifce)
 		if err != nil {
 			err = fmt.Errorf("failed to get old routes: %w", err)
 			return
@@ -261,5 +262,38 @@ routeDedupLoopOuter:
 		}
 	}
 
+	return
+}
+
+func listRoute(conn *rtnetlink.Conn, ifce *net.Interface) (routes []rtnetlink.RouteMessage, err error) {
+	for _, family := range []uint8{unix.AF_INET, unix.AF_INET6} {
+		req := &rtnetlink.RouteMessage{
+			Family: family,
+			Attributes: rtnetlink.RouteAttributes{
+				OutIface: uint32(ifce.Index),
+				// don't filter table here, avoiding no-such-table error
+			},
+		}
+		flags := netlink.Request | netlink.Dump
+		var msgs []rtnetlink.Message
+		err = conn.SetOption(netlink.GetStrictCheck, true)
+		if err != nil {
+			err = fmt.Errorf("failed to set strict check flag: %w", err)
+			return
+		}
+		msgs, err = conn.Execute(req, unix.RTM_GETROUTE, flags)
+		if err != nil {
+			err = fmt.Errorf("failed to execute route list request: %w", err)
+			return
+		}
+		err = conn.SetOption(netlink.GetStrictCheck, false)
+		if err != nil {
+			err = fmt.Errorf("failed to clear strict check flag: %w", err)
+			return
+		}
+		for _, msg := range msgs {
+			routes = append(routes, *msg.(*rtnetlink.RouteMessage))
+		}
+	}
 	return
 }
