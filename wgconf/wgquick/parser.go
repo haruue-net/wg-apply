@@ -55,6 +55,8 @@ func parse(ctx context.Context) (conf *wgconf.Config, err error) {
 		confPath = opts.Path
 		if opts.Interface == "" {
 			ifceName = strings.TrimSuffix(path.Base(opts.Path), ".conf")
+		} else {
+			ifceName = opts.Interface
 		}
 	} else /* opts.Interface != "" && opts.Path == "" */ {
 		ifceName = opts.Interface
